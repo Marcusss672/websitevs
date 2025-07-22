@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Change Email</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
+    <link rel="stylesheet" href="changeemail.css">
+        <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+</head>
+<body>
+    <!-- Back Button -->
+    <a href="editprofile.html" class="back-button">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+</a>
+
+    <!-- Home Button -->
+    <button class="home-button" type="button" id="homebutton">
+        <img src="home icon.png" alt="Home">
+    </button>
+
+    <!-- Edit Profile Container -->
+    <div class="edit-profile-container">
+        <div class="header">
+            <img src="ecosmart logo.png" alt="Profile Icon" class="profile-icon">
+            <h1>CHANGE EMAIL</h1>
+        </div>
+
+        <!-- Form -->
+        <form id="emailForm">
+            <div class="mb-3">
+                <input type="email" class="form-control" id="newEmail" placeholder="NEW EMAIL" required>
+            </div>
+            <div class="mb-3">
+                <input type="password" class="form-control" id="currentPassword" placeholder="CURRENT PASSWORD" required>
+            </div>
+            <button type="submit" class="action-button btn btn-primary">SUBMIT</button>
+        </form>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
+
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.3.0/firebase-app.js";
+        import { 
+            getAuth, 
+            reauthenticateWithCredential, 
+            EmailAuthProvider, 
+            deleteUser, 
+            createUserWithEmailAndPassword 
+        } from "https://www.gstatic.com/firebasejs/11.3.0/firebase-auth.js";
+        import { 
+            getDatabase, 
+            ref, 
+            get, 
+            set, 
+            remove 
+        } from "https://www.gstatic.com/firebasejs/11.3.0/firebase-database.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.3.0/firebase-analytics.js";
+        
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+          apiKey: "AIzaSyAn2WHhyPfyYV0rj5oZRo6MQK5HDbucIbo",
+          authDomain: "queueing-8976a.firebaseapp.com",
+          databaseURL: "https://queueing-8976a-default-rtdb.asia-southeast1.firebasedatabase.app",
+          projectId: "queueing-8976a",
+          storageBucket: "queueing-8976a.firebasestorage.app",
+          messagingSenderId: "10213448291",
+          appId: "1:10213448291:web:2d07230ebe2fe2a9f0f656",
+          measurementId: "G-0YVVS8SY1V"
+        };
+      
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const auth = getAuth(app);
+        const db = getDatabase();
+
+       // Initialize EmailJS with your public key
+       emailjs.init("nfwXahH0M5h3JWQyR");
+        
+        // Check if user is logged in
+        let checkUser = () => {
+            if(!sessionStorage.getItem("user-creds")) {
+                window.location.href = 'adminlogin.html';
+            }
+        }
+
+        // Load event listener
+        window.addEventListener('load', checkUser);
+
+        // Get DOM elements
+        const emailForm = document.getElementById('emailForm');
+        const newEmailInput = document.getElementById('newEmail');
+        const currentPasswordInput = document.getElementById('currentPassword');
+
+        // Function to send email notification with improved error handling
+        async function sendEmailChangeNotification(oldEmail, newEmail) {
+    try {
+        // Show loading state
+        const submitButton = document.querySelector('.action-button');
+        submitButton.disabled = true;
+        
+        console.log("Starting email notification process...");
+        
+        // Validate email addresses
+        if (!oldEmail || typeof oldEmail !== 'string' || oldEmail.trim() === '') {
+            throw new Error("Old email address is empty or invalid");
+        }
+        
+        if (!newEmail || typeof newEmail !== 'string' || newEmail.trim() === '') {
+            throw new Error("New email address is empty or invalid");
+        }
+        
+        console.log("Old Email:", oldEmail);
+        console.log("New Email:", newEmail);
+        
+        // Get current date and time
+        const now = new Date();
+        const dateStr = now.toLocaleDateString();
+        const timeStr = now.toLocaleTimeString();
+
+        // Updated parameters for the old email notification - make sure these match your template variables
+        const oldEmailParams = {
+    email: oldEmail.trim(),  // Changed from to_email to email
+    from_name: "ECO SMART",
+    to_name: "User",
+    date: dateStr,
+    time: timeStr,
+    message: `Your email has been changed from ${oldEmail} to ${newEmail}. If you did not make this change, please contact us immediately.`
+};
+        
+        console.log("Old Email data:", oldEmailParams);
+
+        try {
+            // Send email notification to old address
+            const oldEmailResponse = await emailjs.send("service_v0zy9rm", "template_51s40l6", oldEmailParams);
+            console.log("EmailJS Response (Old Email):", oldEmailResponse);
+            console.log("Status:", oldEmailResponse.status);
+        } catch (oldEmailError) {
+            console.error("Error sending notification to old email:", oldEmailError);
+            console.error("Error details:", oldEmailError.text);
+        }
+
+        // Updated parameters for the new email notification - make sure these match your template variables
+        const newEmailParams = {
+    email: newEmail.trim(),  // Changed from to_email to email
+    from_name: "ECO SMART",
+    to_name: "User",
+    date: dateStr,
+    time: timeStr,
+    message: `Your email has been successfully changed to this address. If you did not make this change, please contact us immediately.`
+};
+        
+        console.log("New Email data:", newEmailParams);
+
+        try {
+            // Add delay to ensure previous request is completed
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Send email notification to new address
+            const newEmailResponse = await emailjs.send("service_v0zy9rm", "template_htrzmhj", newEmailParams);
+            console.log("EmailJS Response (New Email):", newEmailResponse);
+            console.log("Status:", newEmailResponse.status);
+        } catch (newEmailError) {
+            console.error("Error sending notification to new email:", newEmailError);
+            console.error("Error details:", newEmailError.text);
+        }
+        
+        // Continue with redirect regardless of email status
+        window.location.href = "emailchanged.html";
+        
+    } catch (error) {
+        console.error("Error sending email notification:", error);
+        
+        // Re-enable the button
+        const submitButton = document.querySelector('.action-button');
+        if (submitButton) submitButton.disabled = false;
+        
+        // Show alert but still redirect to success page since email was changed
+        alert("Email was changed successfully, but we couldn't send an email notification. Error: " + (error.message || "Unknown error"));
+        
+        // Redirect to success page despite email failure
+        window.location.href = "emailchanged.html";
+    }
+}
+
+        // Handle form submission
+        emailForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Get input values
+            const newEmail = newEmailInput.value;
+            const currentPassword = currentPasswordInput.value;
+            
+            // Get current user
+            const user = auth.currentUser;
+            
+            if (user) {
+                try {
+                    // Get user's current email and data from session storage
+                    const userCreds = JSON.parse(sessionStorage.getItem("user-creds"));
+                    const currentEmail = userCreds.email;
+                    const uid = userCreds.uid;
+                    
+                    // Get user data from database before deleting
+                    const userDataRef = ref(db, 'UsersAuthList/' + uid);
+                    const userSnapshot = await get(userDataRef);
+                    
+                    if (!userSnapshot.exists()) {
+                        throw new Error("User data not found in database");
+                    }
+                    
+                    const userData = userSnapshot.val();
+                    
+                    // Create credential with email and current password
+                    const credential = EmailAuthProvider.credential(currentEmail, currentPassword);
+                    
+                    // Reauthenticate user to confirm password
+                    await reauthenticateWithCredential(user, credential);
+                    
+                    // Delete user account
+                    await deleteUser(user);
+                    
+                    // Create new user account with new email and same password
+                    const newUserCredential = await createUserWithEmailAndPassword(auth, newEmail, currentPassword);
+                    const newUser = newUserCredential.user;
+                    
+                    // Save user data to database with new user ID
+                    await set(ref(db, 'UsersAuthList/' + newUser.uid), {
+                        firstname: userData.firstname,
+                        lastname: userData.lastname
+                    });
+                    
+                    // Remove old user data
+                    await remove(userDataRef);
+                    
+                    // Send email notification
+                    await sendEmailChangeNotification(currentEmail, newEmail);
+                    
+                    // Update session storage
+                    sessionStorage.setItem("user-info", JSON.stringify({
+                        firstname: userData.firstname,
+                        lastname: userData.lastname
+                    }));
+                    
+                    sessionStorage.setItem("user-creds", JSON.stringify({
+                        email: newEmail,
+                        uid: newUser.uid
+                    }));
+                    
+                } catch (error) {
+                    // Handle errors
+                    alert("Error changing email: " + error.message);
+                    console.log(error.code);
+                    console.log(error.message);
+                }
+            } else {
+                // No user is signed in, redirect to login
+                window.location.href = 'adminlogin.html';
+            }
+        });
+
+        let HomeBtn = document.getElementById('homebutton');
+
+        let Home = () => {
+            // Ask user for confirmation before signing out
+            let confirmation = confirm("Are you sure you want to sign out and return to homepage?");
+            
+            // If user clicks "OK" (Yes)
+            if (confirmation) {
+                sessionStorage.removeItem("user-creds");
+                sessionStorage.removeItem("user-info");
+                window.location.href = 'homepage.html';
+            }
+            // If user clicks "Cancel" (No), do nothing and stay on current page
+        };
+
+        HomeBtn.addEventListener('click', Home);
+    </script>
+</body>
+</html>

@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Queue</title>
+    
+    <!-- Import Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="manageque.css">
+    
+    <!-- Firebase -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js';
+        import { getDatabase, ref, onValue, update, push, remove, get, set } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAn2WHhyPfyYV0rj5oZRo6MQK5HDbucIbo",
+            authDomain: "queueing-8976a.firebaseapp.com",
+            databaseURL: "https://queueing-8976a-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "queueing-8976a",
+            storageBucket: "queueing-8976a.firebasestorage.app",
+            messagingSenderId: "10213448291",
+            appId: "1:10213448291:web:2d07230ebe2fe2a9f0f656"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // Reference to queue lists
+        const queueRef = ref(db, 'queue');
+        const nowServingRef = ref(db, 'nowServing');
+        const doneRef = ref(db, 'done');
+        const skippedRef = ref(db, 'skipped');
+
+        // Listen for queue changes
+        onValue(queueRef, (snapshot) => {
+            const data = snapshot.val();
+            updateQueueDisplay(data);
+        });
+
+        // Listen for now serving changes
+        onValue(nowServingRef, (snapshot) => {
+            const data = snapshot.val();
+            updateNowServingDisplay(data);
+        });
+
+        // Listen for skipped queue changes
+        onValue(skippedRef, (snapshot) => {
+            const data = snapshot.val();
+            updateSkippedDisplay(data);
+        });
+
+        function updateQueueDisplay(data) {
+            const regularList = document.getElementById('regular-queue');
+            const priorityList = document.getElementById('priority-queue');
+            
+            regularList.innerHTML = '';
+            priorityList.innerHTML = '';
+
+            if (data) {
+                Object.entries(data).forEach(([key, value]) => {
+                    if (value.status === 'waiting') {
+                        const li = document.createElement('li');
+                        li.textContent = value.queueNumber;
+                        
+                        if (value.laneType === 'regular') {
+                            regularList.appendChild(li);
+                        } else {
+                            priorityList.appendChild(li);
+                        }
+                    }
+                });
+            }
+        }
+
+        function updateNowServingDisplay(data) {
+            const currentNumber = document.getElementById('current-number');
+            const emailDisplay = document.getElementById('email');
+            const transactionDisplay = document.getElementById('transaction');
+
+            if (data) {
+                currentNumber.textContent = data.queueNumber;
+                emailDisplay.textContent = `EMAIL: ${data.email}`;
+                transactionDisplay.textContent = `TRANSACTION: ${getTransactionDetail(data.transactionType)}`;
+            } else {
+                currentNumber.textContent = '---';
+                emailDisplay.textContent = 'EMAIL: ---';
+                transactionDisplay.textContent = 'TRANSACTION: ---';
+            }
+        }
+
+        function updateSkippedDisplay(data) {
+            const skippedList = document.getElementById('skipped-queue');
+            skippedList.innerHTML = '';
+
+            if (data) {
+                Object.entries(data).forEach(([key, value]) => {
+                    const li = document.createElement('li');
+                    li.textContent = value.queueNumber;
+                    li.dataset.key = key;
+                    skippedList.appendChild(li);
+                });
+            }
+        }
+
+        // Helper function to get readable transaction details
+        function getTransactionDetail(transactionType) {
+            switch(transactionType) {
+                case 'tuition': return 'Tuition and Payments';
+                case 'graduates': return 'Graduates';
+                case 'enrollment': return 'Enrollment and Inquiries';
+                case 'schedule': return 'Schedule';
+                case 'document': return 'Request for Document';
+                case 'others': return 'Others';
+                default: return transactionType;
+            }
+        }
+
+        async function findNextForSkip() {
+            const queueSnapshot = await get(queueRef);
+            const queueData = queueSnapshot.val();
+            const skippedSnapshot = await get(skippedRef);
+            const skippedData = skippedSnapshot.val();
+            
+            // 1. Check Priority Queue
+            if (queueData) {
+                const priorityCustomer = Object.entries(queueData).find(([_, value]) => 
+                    value.status === 'waiting' && value.laneType === 'priority'
+                );
+                
+                if (priorityCustomer) {
+                    return {
+                        customer: priorityCustomer[1],
+                        key: priorityCustomer[0],
+                        source: 'queue'
+                    };
+                }
+
+                // 2. Check Regular Queue
+                const regularCustomer = Object.entries(queueData).find(([_, value]) => 
+                    value.status === 'waiting' && value.laneType === 'regular'
+                );
+                
+                if (regularCustomer) {
+                    return {
+                        customer: regularCustomer[1],
+                        key: regularCustomer[0],
+                        source: 'queue'
+                    };
+                }
+            }
+
+            // 3. Check Skipped List last
+            if (skippedData) {
+                const firstSkipped = Object.entries(skippedData)[0];
+                if (firstSkipped) {
+                    return {
+                        customer: firstSkipped[1],
+                        key: firstSkipped[0],
+                        source: 'skipped'
+                    };
+                }
+            }
+
+            return null;
+        }
+
+        // Function for finding next customer when Next is pressed
+        async function findNextForNext() {
+            const queueSnapshot = await get(queueRef);
+            const queueData = queueSnapshot.val();
+            const skippedSnapshot = await get(skippedRef);
+            const skippedData = skippedSnapshot.val();
+            
+            // 1. Check Priority Queue
+            if (queueData) {
+                const priorityCustomer = Object.entries(queueData).find(([_, value]) => 
+                    value.status === 'waiting' && value.laneType === 'priority'
+                );
+                
+                if (priorityCustomer) {
+                    return {
+                        customer: priorityCustomer[1],
+                        key: priorityCustomer[0],
+                        source: 'queue'
+                    };
+                }
+            }
+
+            // 2. Check Skipped List
+            if (skippedData) {
+                const firstSkipped = Object.entries(skippedData)[0];
+                if (firstSkipped) {
+                    return {
+                        customer: firstSkipped[1],
+                        key: firstSkipped[0],
+                        source: 'skipped'
+                    };
+                }
+            }
+
+            // 3. Check Regular Queue last
+            if (queueData) {
+                const regularCustomer = Object.entries(queueData).find(([_, value]) => 
+                    value.status === 'waiting' && value.laneType === 'regular'
+                );
+                
+                if (regularCustomer) {
+                    return {
+                        customer: regularCustomer[1],
+                        key: regularCustomer[0],
+                        source: 'queue'
+                    };
+                }
+            }
+
+            return null;
+        }
+
+        // Modified Next button handler
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('next').addEventListener('click', async () => {
+    try {
+        const nowServingSnapshot = await get(nowServingRef);
+        const currentlyServing = nowServingSnapshot.val();
+
+        if (currentlyServing) {
+            // Add completion time when moving to done
+            const completedCustomer = {
+                ...currentlyServing,
+                timeCompleted: new Date().toLocaleString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true
+                }),
+                date: new Date().toLocaleDateString('en-US', {
+                    month: '2-digit',
+                    day: '2-digit',
+                    year: 'numeric'
+                }),
+                adminHandler: `${getUserInfo()?.firstname || ''} ${getUserInfo()?.lastname || ''}`.trim() || 'Admin'
+            };
+            
+            // Move current to done with completion time
+            await push(doneRef, completedCustomer);
+            await set(nowServingRef, null);
+        }
+
+        // Find next customer based on Next priority order
+        const next = await findNextForNext();
+        
+        if (next) {
+            const startTime = new Date().toLocaleString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+            });
+            
+            if (next.source === 'queue') {
+                // Add timeStarted when moving to nowServing
+                const customerWithStartTime = {
+                    ...next.customer,
+                    timeStarted: startTime,
+                    date: new Date().toLocaleDateString('en-US', {
+                        month: '2-digit',
+                        day: '2-digit',
+                        year: 'numeric'
+                    })
+                };
+                
+                await set(nowServingRef, customerWithStartTime);
+                await remove(ref(db, `queue/${next.key}`));
+            } else if (next.source === 'skipped') {
+                // Add timeStarted when moving from skipped to nowServing
+                const customerWithStartTime = {
+                    ...next.customer,
+                    timeStarted: startTime,
+                    date: new Date().toLocaleDateString('en-US', {
+                        month: '2-digit',
+                        day: '2-digit',
+                        year: 'numeric'
+                    })
+                };
+                
+                await remove(ref(db, `skipped/${next.key}`));
+                await set(nowServingRef, customerWithStartTime);
+            }
+        }
+    } catch (error) {
+        console.error('Error processing next:', error);
+    }
+});
+
+            // Modified Skip button handler
+            document.getElementById('skip').addEventListener('click', async () => {
+    try {
+        const nowServingSnapshot = await get(nowServingRef);
+        const currentlyServing = nowServingSnapshot.val();
+
+        if (currentlyServing) {
+            // First, move current number to skipped list (preserve original times)
+            await push(skippedRef, currentlyServing);
+            await set(nowServingRef, null);
+
+            // Then, find next number based on Skip priority order
+            const next = await findNextForSkip();
+            
+            if (next) {
+                const startTime = new Date().toLocaleString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true
+                });
+                
+                if (next.source === 'queue') {
+                    // Add timeStarted when moving to nowServing
+                    const customerWithStartTime = {
+                        ...next.customer,
+                        timeStarted: startTime,
+                        date: new Date().toLocaleDateString('en-US', {
+                            month: '2-digit',
+                            day: '2-digit',
+                            year: 'numeric'
+                        })
+                    };
+                    
+                    await set(nowServingRef, customerWithStartTime);
+                    await remove(ref(db, `queue/${next.key}`));
+                } else if (next.source === 'skipped') {
+                    // Add new timeStarted when moving from skipped to nowServing
+                    const customerWithStartTime = {
+                        ...next.customer,
+                        timeStarted: startTime,
+                        date: new Date().toLocaleDateString('en-US', {
+                            month: '2-digit',
+                            day: '2-digit',
+                            year: 'numeric'
+                        })
+                    };
+                    
+                    await remove(ref(db, `skipped/${next.key}`));
+                    await set(nowServingRef, customerWithStartTime);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error processing skip:', error);
+    }
+});
+
+            // Modified Delete button handler
+            document.getElementById('delete').addEventListener('click', async () => {
+                // Ask user for confirmation before deleting
+                let confirmation = confirm("Are you sure you want to delete this queue number?");
+                
+                // Only proceed if user confirms
+                if (confirmation) {
+                    try {
+                        const nowServingSnapshot = await get(nowServingRef);
+                        const currentlyServing = nowServingSnapshot.val();
+
+                        if (currentlyServing) {
+                            // Simply remove from now serving without adding to done list
+                            await set(nowServingRef, null);
+                        }
+                    } catch (error) {
+                        console.error('Error processing delete:', error);
+                    }
+                }
+            });
+        });
+
+        let UserCreds = JSON.parse(sessionStorage.getItem("user-creds"));
+        let UserInfo = JSON.parse(sessionStorage.getItem("user-info"));
+    
+        let Home = () => {
+            // Ask user for confirmation before signing out
+            let confirmation = confirm("Are you sure you want to sign out and return to homepage?");
+            
+            // If user clicks "OK" (Yes)
+            if (confirmation) {
+                sessionStorage.removeUser("user-creds");
+                sessionStorage.removeItem("user-info");
+                window.location.href = 'homepage.html';
+            }
+        };
+    
+        let CheckCred = ()=>{
+            if(!sessionStorage.getItem("user-creds"))
+                window.location.href = 'adminlogin.html'
+        }
+    
+        window.addEventListener('load', CheckCred);
+
+// Helper function to get current admin info
+function getUserInfo() {
+    try {
+        return JSON.parse(sessionStorage.getItem("user-info"));
+    } catch {
+        return null;
+    }
+}
+
+    </script>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <a href="adminhomepage.html" class="back-button">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+
+        </a>
+        <h1>Manage Queue</h1>
+    </header>
+
+    <div class="container">
+        <div class="queue-container">
+            <div class="queue">
+                <h2 class="queue-title">Regular</h2>
+                <ul id="regular-queue"></ul>
+            </div>
+
+            <div class="queue">
+                <h2 class="queue-title">Priority</h2>
+                <ul id="priority-queue"></ul>
+            </div>
+        </div>
+
+        <div class="skipped-container">
+            <h3>Skipped Numbers</h3>
+            <ul id="skipped-queue"></ul>
+        </div>
+
+        <div class="serving-box">
+            <div>
+                <h2>Now Serving:</h2>
+                <p id="current-number">---</p>
+                <p id="email">EMAIL: ---</p>
+                <p id="transaction">TRANSACTION: ---</p>
+            </div>
+            
+            <div class="button-container">
+                <button id="skip">Skip</button>
+                <button id="next">Next</button>
+                <button id="delete">Delete</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

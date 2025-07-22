@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoSmart</title>
+    <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Russo+One" rel="stylesheet">
+    <link rel="stylesheet" href="homepage.css">
+    <script src="language-system.js"></script>
+</head>
+
+<body>
+
+
+    <!-- Language Selector -->
+<div class="language-selector">
+    <button class="lang-btn active" onclick="changeLanguage('en')" data-lang="en">English</button>
+    <button class="lang-btn" onclick="changeLanguage('tl')" data-lang="tl">Tagalog</button>
+</div>
+
+    <p> <a class="facilitator-btn" href="adminlogin.html"data-translate="facilitator">FACILITATOR</a></a></p>
+
+    <div class="container">
+        <div class="logo">
+            <img src="ecosmart logo.png" alt="EcoSmart Logo">
+        </div>
+        <h2 data-translate="welcome">WELCOME TO</h2>
+
+        <svg viewBox="0 0 1320 300">
+            <text x="50%" y="50%" dy=".35em" text-anchor="middle">
+                EcoSmart
+            </text>
+        </svg>
+
+        <!-- Fixed button-group structure -->
+        <div class="button-group">
+    <a class="queue-btn" href="#" onclick="navigateWithLanguage('Customer.html')" data-translate="queue-now">QUEUE NOW</a>
+    <a class="queue-btn" href="#" onclick="navigateWithLanguage('viewque.html')" data-translate="view-queue">VIEW QUEUING</a>
+</div>
+
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

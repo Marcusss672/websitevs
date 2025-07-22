@@ -1,0 +1,220 @@
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&family=Great+Vibes&display=swap');
+
+/* Reset & Global Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #e6f9ea 0%, #d0f0d5 25%, #b8e8c1 50%, #a0dfad 75%, #88d799 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    color: #2e5a41;
+    position: relative;
+    padding: 20px;
+    animation: fadeIn 2s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Back Button */
+.back-button {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(46, 90, 65, 0.7);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(87, 177, 136, 0.3);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    z-index: 100;
+    text-decoration: none;
+}
+
+.back-button img {
+    width: 24px;
+    height: 24px;
+    filter: brightness(0) invert(1);
+}
+
+.back-button:hover {
+    transform: scale(1.1);
+    background: rgba(87, 177, 136, 0.8);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+}
+
+/* Content Container - No background container */
+.container {
+    width: 100%;
+    max-width: 600px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+/* Logo */
+.logo {
+    width: 200px;
+    height: auto;
+    margin-bottom: 30px;
+    filter: drop-shadow(0 10px 20px rgba(0,0,0,0.3));
+}
+
+/* Main Text */
+.queue-text {
+    font-family: 'Great Vibes', cursive;
+    font-size: 4rem;
+    font-weight: bold;
+    color: #c8e6c9;
+    margin-bottom: 40px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    line-height: 1.2;
+}
+
+/* Subtext */
+.subtext {
+    font-size: 16px;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin: 10px 0 30px;
+    color: #2e5a41;
+    letter-spacing: 1px;
+}
+
+/* OK Button */
+.okay-btn {
+    background: linear-gradient(135deg, #2e5a41, #57b188);
+    color: #ffffff;
+    font-size: 18px;
+    padding: 18px 40px;
+    border-radius: 25px;
+    border: 1px solid #254b35;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    min-width: 150px;
+}
+
+.okay-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+}
+
+.okay-btn:hover::before {
+    left: 100%;
+}
+
+.okay-btn:hover {
+    background: linear-gradient(135deg, #57b188, #88d799);
+    border-color: #57b188;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+}
+
+.okay-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+
+    .back-button {
+        top: 10px;
+        left: 10px;
+        width: 45px;
+        height: 45px;
+    }
+
+    .back-button img {
+        width: 20px;
+        height: 20px;
+    }
+
+    .logo {
+        width: 150px;
+        margin-bottom: 25px;
+    }
+
+    .queue-text {
+        font-size: 3rem;
+        margin-bottom: 30px;
+    }
+
+    .okay-btn {
+        font-size: 16px;
+        padding: 16px 35px;
+    }
+}
+
+@media (max-width: 480px) {
+    .back-button {
+        width: 40px;
+        height: 40px;
+    }
+
+    .back-button img {
+        width: 18px;
+        height: 18px;
+    }
+
+    .logo {
+        width: 120px;
+        margin-bottom: 20px;
+    }
+
+    .queue-text {
+        font-size: 2.5rem;
+        margin-bottom: 25px;
+    }
+
+    .okay-btn {
+        font-size: 14px;
+        padding: 14px 30px;
+        min-width: 130px;
+    }
+
+    .subtext {
+        font-size: 14px;
+        margin: 10px 0 25px;
+    }
+}

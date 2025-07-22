@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Homepage</title>
+    <link rel="stylesheet" href="adminhomepage.css">
+    <link href="https://fonts.googleapis.com/css?family=Trirong" rel="stylesheet">
+</head>
+<body>
+
+    <!-- Top Navigation Bar -->
+    <div class="nav-bar">
+     
+
+        <div class="top-buttons">
+            <button class="icon-btn" type="button" id="homebutton">
+                <svg class="home-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M9 22V12H15V22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+            
+            <a class="icon-btn" href="editprofile.html">
+                <svg class="profile-icon" width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Head (circle) -->
+                    <circle cx="12" cy="7" r="3" fill="currentColor"/>
+                    <!-- Body (shoulders and torso) -->
+                    <path d="M12 12c-4 0-7 2-7 5v3h14v-3c0-3-3-5-7-5z" fill="#2e5a41"/>
+                </svg>
+            </a>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Logo -->
+        <div class="logo">
+            <img src="ecosmart logo.png" alt="EcoSmart Logo">
+        </div>
+
+        <!-- Welcome Text -->
+        <h2 class="welcome-text">Welcome, <span id="adminName">Admin</span></h2>
+        <p class="subtitle">YOU MAY NOW VIEW AND MANAGE THE LISTS OF CUSTOMERS</p>
+
+        <!-- Buttons -->
+        <div class="button-group">
+            <a class="action-btn" href="manageque.html">MANAGE QUEUING</a>
+            <a class="action-btn" href="dailyreport.html">VIEW DAILY REPORT</a>
+        </div>
+    </div>
+
+    <!-- Script for admin name and buttons -->
+    <script>
+        // Button logic - Home button acts as sign out
+        let HomeBtn = document.getElementById('homebutton');
+
+        // Home button function - signs out and goes to homepage
+        let HomeSignOut = () => {
+            if (confirm("Are you sure you want to sign out and return to homepage?")) {
+                // Clear all session and local storage (sign out)
+                sessionStorage.removeItem("user-creds");
+                sessionStorage.removeItem("user-info");
+                localStorage.removeItem("adminId");
+                localStorage.removeItem("adminData");
+                
+                // Redirect to homepage
+                window.location.href = 'homepage.html';
+            }
+        };
+
+        // Check credentials function
+        let CheckCred = () => {
+            if (!sessionStorage.getItem("user-creds")) {
+                window.location.href = 'adminlogin.html';
+            }
+        };
+
+        // Event listeners
+        window.addEventListener('load', CheckCred);
+
+        // Add click event to home button for sign out functionality
+        if (HomeBtn) {
+            HomeBtn.addEventListener('click', HomeSignOut);
+            console.log('Home button (sign out) event listener added successfully');
+        } else {
+            console.error('Home button not found!');
+        }
+    </script>
+<!-- Firebase -->
+<script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js';
+    import { getDatabase, ref, get } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js';
+    import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js';
+
+    // Firebase configuration
+    const firebaseConfig = {
+        apiKey: "AIzaSyAn2WHhyPfyYV0rj5oZRo6MQK5HDbucIbo",
+        authDomain: "queueing-8976a.firebaseapp.com",
+        databaseURL: "https://queueing-8976a-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "queueing-8976a",
+        storageBucket: "queueing-8976a.firebasestorage.app",
+        messagingSenderId: "10213448291",
+        appId: "1:10213448291:web:2d07230ebe2fe2a9f0f656"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
+    const auth = getAuth(app);
+
+    // Make Firebase functions available globally
+    window.database = database;
+    window.dbRef = ref;
+    window.dbGet = get;
+
+    // Load admin name function - FIXED VERSION
+    async function loadAdminName() {
+        try {
+            console.log('Loading admin name...');
+            
+            // First check sessionStorage for user-info (this is what login sets)
+            const userInfoString = sessionStorage.getItem('user-info');
+            const userCredsString = sessionStorage.getItem('user-creds');
+            
+            console.log('User info from sessionStorage:', userInfoString);
+            console.log('User creds from sessionStorage:', userCredsString);
+            
+            if (userInfoString && userInfoString !== 'null' && userInfoString !== 'undefined') {
+                try {
+                    const userInfo = JSON.parse(userInfoString);
+                    console.log('Parsed user info:', userInfo);
+                    
+                    // Check for both possible formats from login
+                    let firstName = userInfo.firstName || userInfo.firstname;
+                    let lastName = userInfo.lastName || userInfo.lastname;
+                    
+                    if (firstName && lastName) {
+                        const fullName = `${firstName} ${lastName}`;
+                        console.log('Setting name from sessionStorage:', fullName);
+                        document.getElementById('adminName').textContent = fullName;
+                        return; // Successfully loaded from sessionStorage
+                    }
+                } catch (parseError) {
+                    console.error('Error parsing user info from sessionStorage:', parseError);
+                }
+            }
+            
+            // Fallback: try localStorage
+            const adminDataString = localStorage.getItem('adminData');
+            const adminId = localStorage.getItem('adminId');
+            
+            if (adminDataString && adminDataString !== 'null' && adminDataString !== 'undefined') {
+                try {
+                    const adminData = JSON.parse(adminDataString);
+                    console.log('Parsed admin data from localStorage:', adminData);
+                    
+                    let firstName = adminData.firstName || adminData.firstname;
+                    let lastName = adminData.lastName || adminData.lastname;
+                    
+                    if (firstName && lastName) {
+                        const fullName = `${firstName} ${lastName}`;
+                        console.log('Setting name from localStorage:', fullName);
+                        document.getElementById('adminName').textContent = fullName;
+                        return;
+                    }
+                } catch (parseError) {
+                    console.error('Error parsing admin data from localStorage:', parseError);
+                }
+            }
+            
+            // Last fallback: fetch from Firebase if we have user credentials
+            if (userCredsString) {
+                try {
+                    const userCreds = JSON.parse(userCredsString);
+                    const userId = userCreds.uid;
+                    
+                    if (userId) {
+                        console.log('Fetching admin data from Firebase for ID:', userId);
+                        
+                        // Try both possible database paths
+                        let adminRef = ref(database, `admins/${userId}`);
+                        let snapshot = await get(adminRef);
+                        
+                        if (!snapshot.exists()) {
+                            // Try the other path
+                            adminRef = ref(database, `UsersAuthList/${userId}`);
+                            snapshot = await get(adminRef);
+                        }
+                        
+                        if (snapshot.exists()) {
+                            const data = snapshot.val();
+                            console.log('Admin data from Firebase:', data);
+                            
+                            let firstName = data.firstName || data.firstname;
+                            let lastName = data.lastName || data.lastname;
+                            
+                            if (firstName && lastName) {
+                                const fullName = `${firstName} ${lastName}`;
+                                console.log('Setting name from Firebase:', fullName);
+                                document.getElementById('adminName').textContent = fullName;
+                                return;
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error fetching from Firebase:', error);
+                }
+            }
+            
+            // If we get here, something went wrong
+            console.warn('Could not load admin name, using default');
+            document.getElementById('adminName').textContent = 'Admin';
+            
+        } catch (error) {
+            console.error('Error loading admin name:', error);
+            document.getElementById('adminName').textContent = 'Admin';
+        }
+    }
+
+    // Load dashboard data function
+    async function loadDashboardData() {
+        await loadAdminName();
+        // Your existing code...
+    }
+
+    // Initialize the page
+    document.addEventListener('DOMContentLoaded', function() {
+        loadDashboardData();
+    });
+    
+    // Also try to load on window load as backup
+    window.addEventListener('load', function() {
+        loadDashboardData();
+    });
+    
+</script>
+</body>
+</html>

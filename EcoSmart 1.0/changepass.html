@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Change Password</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
+    <link rel="stylesheet" href="changepass.css">
+        <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+</head>
+<body>
+    <!-- Back Button -->
+    <a href="editprofile.html" class="back-button">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+</a>
+
+    <!-- Home Button -->
+    <button class="home-button" type="button" id="homebutton">
+        <img src="home icon.png" alt="Home">
+    </button>
+
+    <!-- Change Password Container -->
+    <div class="password-container">
+        <div class="header">
+            <img src="ecosmart logo.png" alt="Profile Icon" class="profile-icon">
+            <h1>CHANGE PASSWORD</h1>
+        </div>
+
+        <!-- Form -->
+        <form id="passwordForm">
+            <div class="mb-3">
+                <input type="password" class="form-control" id="currentPassword" placeholder="CURRENT PASSWORD" required>
+            </div>
+            <div class="mb-3">
+                <input type="password" class="form-control" id="newPassword" placeholder="NEW PASSWORD" required>
+            </div>
+            <div class="mb-3">
+                <input type="password" class="form-control" id="repeatPassword" placeholder="REPEAT NEW PASSWORD" required>
+            </div>
+            <button type="submit" class="submit-button btn btn-primary">SUBMIT</button>
+        </form>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
+
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.3.0/firebase-app.js";
+        import { getAuth, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/11.3.0/firebase-auth.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.3.0/firebase-analytics.js";
+        
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+          apiKey: "AIzaSyAn2WHhyPfyYV0rj5oZRo6MQK5HDbucIbo",
+          authDomain: "queueing-8976a.firebaseapp.com",
+          databaseURL: "https://queueing-8976a-default-rtdb.asia-southeast1.firebasedatabase.app",
+          projectId: "queueing-8976a",
+          storageBucket: "queueing-8976a.firebasestorage.app",
+          messagingSenderId: "10213448291",
+          appId: "1:10213448291:web:2d07230ebe2fe2a9f0f656",
+          measurementId: "G-0YVVS8SY1V"
+        };
+      
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const auth = getAuth(app);
+
+        // Initialize EmailJS with your public key
+        emailjs.init("WSgCqLyO88rIlgu0a");
+
+        // Check if user is logged in
+        let checkUser = () => {
+            if(!sessionStorage.getItem("user-creds")) {
+                window.location.href = 'adminlogin.html';
+            }
+        }
+
+        // Load event listener
+        window.addEventListener('load', checkUser);
+
+        // Get DOM elements
+        const passwordForm = document.getElementById('passwordForm');
+        const currentPasswordInput = document.getElementById('currentPassword');
+        const newPasswordInput = document.getElementById('newPassword');
+        const repeatPasswordInput = document.getElementById('repeatPassword');
+
+        // Function to send password change email with improved error handling
+async function sendPasswordChangeEmail(email) {
+    try {
+        // Show loading state
+        const submitButton = document.querySelector('.submit-button');
+        const originalText = submitButton.textContent;
+        submitButton.disabled = true;
+        
+        console.log("Starting email notification process...");
+        console.log("Email recipient:", email);
+        
+        // Get current date and time
+        const now = new Date();
+        const dateStr = now.toLocaleDateString();
+        const timeStr = now.toLocaleTimeString();
+
+        // Create email parameters
+        const emailParams = {
+            to_email: email,
+            from_name: "ECO SMART",
+            date: dateStr,
+            time: timeStr,
+            subject: "Password Change",
+            message: "Your password has been successfully changed. If you did not make this change, please contact us immediately.",
+            reply_to: "authenticationecosmart@gmail.com"
+        };
+        
+        console.log("Email data:", emailParams);
+
+        // Send email using the EmailJS service
+        // Change to use service_ze8imua instead of Gmail API service
+        const response = await emailjs.send("service_c9el6ba", "template_7ip7u7a", emailParams);
+        
+        console.log("EmailJS Response:", response);
+        console.log("Status:", response.status);
+        console.log("Text:", response.text);
+        
+        if (response.status === 200) {
+            console.log("Password change email sent successfully");
+            window.location.href = "passwordchanged.html";
+        } else {
+            throw new Error("Email service returned status: " + response.status);
+        }
+    } catch (error) {
+        console.error("Error sending email notification:", error);
+        
+        // Show alert but still redirect to success page since password was changed
+        alert("Password was changed successfully, but we couldn't send an email notification. Error: " + (error.message || "Unknown error"));
+        
+        // Redirect to success page despite email failure
+        window.location.href = "passwordchanged.html";
+    }
+}
+
+        // Handle form submission
+        passwordForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Show loading state
+            const submitButton = document.querySelector('.submit-button');
+            submitButton.textContent = "Processing...";
+            submitButton.disabled = true;
+            
+            try {
+                // Get input values
+                const currentPassword = currentPasswordInput.value;
+                const newPassword = newPasswordInput.value;
+                const repeatPassword = repeatPasswordInput.value;
+                
+                // Check if new passwords match
+                if (newPassword !== repeatPassword) {
+                    throw new Error("New passwords don't match!");
+                }
+                
+                // Get current user
+                const user = auth.currentUser;
+                
+                if (!user) {
+                    throw new Error("No user is signed in");
+                }
+                
+                // Get user's email from session storage
+                const userCreds = JSON.parse(sessionStorage.getItem("user-creds"));
+                const email = userCreds.email;
+                
+                if (!email) {
+                    throw new Error("Could not retrieve user email");
+                }
+                
+                console.log("Changing password for:", email);
+                
+                // Create credential with email and current password
+                const credential = EmailAuthProvider.credential(email, currentPassword);
+                
+                // Reauthenticate user
+                await reauthenticateWithCredential(user, credential);
+                console.log("User reauthenticated successfully");
+                
+                // Update password
+                await updatePassword(user, newPassword);
+                console.log("Password updated successfully");
+                
+                // Send email notification
+                await sendPasswordChangeEmail(email);
+                
+            } catch (error) {
+                console.error("Password change error:", error);
+                
+                // Reset button state
+                submitButton.textContent = "SUBMIT";
+                submitButton.disabled = false;
+                
+                // Show appropriate error message
+                if (error.message.includes("passwords don't match")) {
+                    alert("New passwords don't match!");
+                } else if (error.code === "auth/wrong-password") {
+                    alert("Current password is incorrect. Please try again.");
+                } else if (error.code === "auth/requires-recent-login") {
+                    alert("For security reasons, please sign out and sign in again before changing your password.");
+                    sessionStorage.removeItem("user-creds");
+                    sessionStorage.removeItem("user-info");
+                    window.location.href = 'adminlogin.html';
+                } else {
+                    alert("Error: " + (error.message || "Unknown error occurred"));
+                }
+            }
+        });
+
+        let HomeBtn = document.getElementById('homebutton');
+
+        let Home = () => {
+            // Ask user for confirmation before signing out
+            let confirmation = confirm("Are you sure you want to sign out and return to homepage?");
+            
+            // If user clicks "OK" (Yes)
+            if (confirmation) {
+                sessionStorage.removeItem("user-creds");
+                sessionStorage.removeItem("user-info");
+                window.location.href = 'homepage.html';
+            }
+            // If user clicks "Cancel" (No), do nothing and stay on current page
+        };
+
+        HomeBtn.addEventListener('click', Home);
+    </script>
+</body>
+</html>

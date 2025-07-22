@@ -1,0 +1,95 @@
+body {
+  background: linear-gradient(to bottom, #4a5a3f, #98b071);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  font-family: Arial, sans-serif;
+}
+
+#navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(#202020, #303030);
+  padding: 15px 30px;
+  width: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+}
+
+.logo img, .nav-button img {
+  width: 40px;
+  height: auto;
+  border-radius: 5px;
+}
+
+.content {
+  margin-top: 120px;
+  width: 90%;
+  max-width: 400px;
+}
+
+.image-1 img {
+  width: 150px;
+  margin-bottom: 20px;
+}
+
+.heading {
+  font-size: 24px;
+  font-weight: bold;
+  color: white;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+}
+
+.form-control {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  background: #092703;
+  color: white;
+  font-size: 16px;
+}
+
+.form-control::placeholder {
+  color: #ddd;
+}
+
+button {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 10px;
+  background: black;
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+  transition: 0.3s;
+  margin-top: 10px;
+}
+
+button:hover {
+  background: #333;
+}
+
+.message {
+  margin-top: 20px;
+  color: white;
+  font-size: 16px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .content {
+      width: 90%;
+  }
+
+  .logo img, .nav-button img {
+      width: 30px;
+  }
+}

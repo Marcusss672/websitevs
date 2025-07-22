@@ -1,0 +1,167 @@
+.delete-btn {
+    color: rgb(255, 255, 255);
+    background-color: rgba(255, 0, 0, 0.76);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s, transform 0.2s;
+  }
+  
+  .delete-btn:hover {
+    background-color: rgb(139, 86, 86);
+    transform: scale(1.05);
+  }
+  
+  .delete-btn:active {
+    transform: scale(0.95);
+  }
+  
+  
+  .transaction-filter {
+    background: rgba(15, 26, 10, 0.6);
+    backdrop-filter: blur(20px);
+    border: 1px solid #254b35;          /* Dark border green */
+    border-radius: 16px;
+    padding: 15px 20px;
+    margin: 70px auto 20px auto;        /* Combine top & bottom margin */
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
+    max-width: 50%;
+    position: relative;
+    overflow: hidden;
+    bottom: 40px;
+}
+
+.transaction-filter select {
+    background: rgba(46, 90, 65, 0.85); /* Match .date-filter input */
+    border: 1px solid #254b35;
+    border-radius: 8px;
+    padding: 12px 15px;
+    color: #e8f5e8;
+    font-size: 14px;
+}
+
+.transaction-filter button {
+    background: rgba(46, 90, 65, 0.85);              /* Slightly tinted green */
+    border: 1px solid #254b35;                       /* Dark border green */
+    color: #ffffff;
+    font-size: 14px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.transaction-filter button:hover {
+ background: linear-gradient(135deg, #254b35, #57b188);  /* Hover with accent */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);}
+  
+  
+  /* Gradient label, optional */
+  .filter-label {
+      color: #FFFFFF !important;
+      font-weight: 900 !important;
+      font-size: 22px !important;
+      text-transform: uppercase !important;
+      letter-spacing: 4px !important;
+      margin-right: 28px !important;
+      white-space: nowrap !important;
+      font-family: 'Orbitron', 'Impact', monospace !important;
+      position: relative !important;
+      background: linear-gradient(135deg, #c8e6c9, #FFFFFF, #a0dfad, #FFFFFF);
+      background-size: 300% 300%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: shimmer 3s ease-in-out infinite;
+      filter: drop-shadow(0 0 12px rgba(200, 230, 201, 0.6));
+  }
+  
+  .filter-label::before {
+      content: '◆';
+      position: absolute;
+      left: -35px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #57b188;
+      font-size: 16px;
+      animation: pulse 2s infinite;
+  }
+  
+  .filter-label::after {
+      content: '';
+      position: absolute;
+      bottom: -8px;
+      left: 0;
+      width: 100%;
+      height: 6px;
+      background: linear-gradient(90deg,
+          transparent, #2e5a41, #57b188, #88d799, #57b188, #2e5a41, transparent);
+      border-radius: 3px;
+      opacity: 0.8;
+      box-shadow:
+          0 0 20px rgba(87, 177, 136, 0.5),
+          0 4px 8px rgba(0, 0, 0, 0.3);
+      animation: glow 2.5s ease-in-out infinite alternate;
+  }
+  
+  /* Animations */
+  @keyframes gradientShift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+  }
+  
+  @keyframes floatParticles {
+      0% { transform: translate(0, 0); }
+      100% { transform: translate(-50px, -50px); }
+  }
+  
+  @keyframes shimmer {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+  }
+  
+  @keyframes pulse {
+      0%, 100% { opacity: 0.7; transform: translateY(-50%) scale(1); }
+      50% { opacity: 1; transform: translateY(-50%) scale(1.2); }
+  }
+  
+  @keyframes glow {
+      from {
+          box-shadow: 0 0 20px rgba(87, 177, 136, 0.3), 0 4px 8px rgba(0, 0, 0, 0.3);
+      }
+      to {
+          box-shadow: 0 0 30px rgba(87, 177, 136, 0.7), 0 6px 12px rgba(0, 0, 0, 0.4);
+      }
+  }
+  .restore-button {
+    display: inline-block;
+    padding: 8px;
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    position: relative;
+    right: -1490px;
+    bottom: 110px;
+  }
+  
+  .logo-img {
+    height: 40px; /* Adjust size */
+    width: auto;
+    display: block;
+  }
+  
+  .back-icon {
+    height: 35px;
+    width: 35px;
+    display: block;
+  }

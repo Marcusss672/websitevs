@@ -1,0 +1,995 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    
+    <!-- Import Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    
+    <!-- Link to external CSS -->
+    <link rel="stylesheet" href="dailyreport.css">
+    <link rel="stylesheet" href="delete.css">
+    
+    <!-- Firebase -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js';
+        import { getDatabase, ref, get, }from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js';
+
+        window.deleteTransaction = async function(index) {
+            const entry = filteredData[index];
+            if (!entry || !entry.queueNumber) return;
+
+            const confirmDelete = confirm(`Are you sure you want to delete Queue #${entry.queueNumber}?`);
+            if (!confirmDelete) return;
+
+            try {
+                const baseURL = "https://queueing-8976a-default-rtdb.asia-southeast1.firebasedatabase.app";
+
+                console.log("Deleting from all sources. Queue #:", entry.queueNumber);
+
+                // Step 1: Archive to /Deleted
+                await fetch(`${baseURL}/Deleted/${entry.queueNumber}.json`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(entry)
+                });
+
+                // Step 2: Delete from all possible nodes
+                const allNodes = ['done', 'currently_serving', 'queue', 'priority_queue', 'nowServing'];
+                for (const node of allNodes) {
+                    await fetch(`${baseURL}/${node}/${entry.queueNumber}.json`, {
+                        method: "DELETE"
+                    });
+                }
+
+                // Step 3: Remove from dashboard arrays
+                filteredData.splice(index, 1);
+                dashboardData = dashboardData.filter(item => item.queueNumber !== entry.queueNumber);
+
+                // Step 4: Update UI
+                updateStats();
+                updateCharts();
+                updateTable();
+
+                alert("Transaction deleted.");
+            } catch (err) {
+                console.error("Delete error:", err);
+                alert("Failed to delete entry.");
+            }
+        };
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAn2WHhyPfyYV0rj5oZRo6MQK5HDbucIbo",
+            authDomain: "queueing-8976a.firebaseapp.com",
+            databaseURL: "https://queueing-8976a-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "queueing-8976a",
+            storageBucket: "queueing-8976a.firebasestorage.app",
+            messagingSenderId: "10213448291",
+            appId: "1:10213448291:web:2d07230ebe2fe2a9f0f656"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        // Make Firebase functions available globally
+        window.database = database;
+        window.dbRef = ref;
+        window.dbGet = get;
+        
+        // Initialize when page loads
+        window.addEventListener('DOMContentLoaded', loadDashboardData);
+    </script>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <a href="adminhomepage.html" class="back-button">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </a>
+        <h1>Admin Dashboard</h1>
+    </header>
+    
+    <a href="restore.html" class="restore-button">
+        <img src="icons8-data-backup-100 (5).png" alt="View Archived" class="logo-img">
+    </a>
+
+    <!-- Controls -->
+    <div class="controls">
+        <div class="date-filter">
+            <input type="date" id="startDate">
+            <span style="color: #b8d4a8;">to</span>
+            <input type="date" id="endDate">
+            <select id="viewType">
+                <option value="daily">Daily View</option>
+                <option value="weekly">Weekly View</option>
+                <option value="monthly">Monthly View</option>
+            </select>
+            <button id="loadDashboard">Load Dashboard</button>
+        </div>
+    </div>
+
+    <!-- Transaction Filter -->
+    <div class="transaction-filter">
+        <label for="transactionTypeFilter">Filter by Transaction Type:</label>
+        <select id="transactionTypeFilter">
+            <option value="all">All Transactions</option>
+            <option value="tuition">Tuition and Payments</option>
+            <option value="graduates">Graduates</option>
+            <option value="enrollment">Enrollment and Inquiries</option>
+            <option value="schedule">Schedule</option>
+            <option value="document">Request for Document</option>
+            <option value="others">Others</option>
+        </select>
+        <button id="applyTransactionFilter">Apply Filter</button>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-number" id="totalTransactions">0</div>
+            <div class="stat-label">Total Transactions</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" id="regularCount">0</div>
+            <div class="stat-label">Regular Queue</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" id="priorityCount">0</div>
+            <div class="stat-label">Priority Queue</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" id="avgServiceTime">0</div>
+            <div class="stat-label">Avg Service Time (min)</div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-grid">
+        <div class="chart-container">
+            <div class="chart-title">Transaction Types Distribution</div>
+            <canvas id="transactionChart"></canvas>
+        </div>
+        <div class="chart-container">
+            <div class="chart-title">Daily Transaction Trends</div>
+            <canvas id="trendChart"></canvas>
+        </div>
+        <div class="chart-container time-interval-chart">
+            <div class="chart-title">Service Time Intervals</div>
+            <canvas id="timeIntervalChart"></canvas>
+        </div>
+        <div class="chart-container admin-performance-chart">
+            <div class="chart-title">Admin Performance</div>
+            <canvas id="adminChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Customer Details Table -->
+    <div class="table-section">
+        <div class="table-header">
+            <div class="table-title">Customer Transaction Details</div>
+            <input type="text" class="search-box" id="searchBox" placeholder="Search by email, queue number, or admin...">
+        </div>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Queue #</th>
+                        <th>Email</th>
+                        <th>Transaction Type</th>
+                        <th>Customer Type</th>
+                        <th>Date Registered</th>
+                        <th>Time Registered</th>
+                        <th>Time Started</th>
+                        <th>Time Completed</th>
+                        <th>Service Time</th>
+                        <th>Admin Handler</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="customerTable">
+                    <tr><td colspan="11"><span class="loading"></span>Loading data...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let dashboardData = [];
+        let filteredData = [];
+        let currentTransactionFilter = 'all';
+        let transactionChart, trendChart, timeIntervalChart, adminChart;
+        let adminProfiles = {}; // Store admin profiles for name lookup
+
+        const userInfo = JSON.parse(sessionStorage.getItem("user-info") || '{}');
+const adminFullName = `${userInfo.firstname || ''} ${userInfo.lastname || ''}`.trim();
+
+
+        
+        // Set default dates
+        const today = new Date();
+        const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+        document.getElementById('startDate').valueAsDate = weekAgo;
+        document.getElementById('endDate').valueAsDate = today;
+
+        // Event listeners
+        document.getElementById('loadDashboard').addEventListener('click', loadDashboardData);
+        document.getElementById('searchBox').addEventListener('input', filterTable);
+        document.getElementById('applyTransactionFilter').addEventListener('click', applyTransactionFilter);
+
+        // Load admin profiles for name lookup
+        async function loadAdminProfiles() {
+            try {
+                const adminRef = window.dbRef(window.database, "AdminAccounts");
+                const adminSnapshot = await window.dbGet(adminRef);
+                
+                if (adminSnapshot.exists()) {
+                    const adminData = adminSnapshot.val();
+                    adminProfiles = {};
+                    
+                    // Create a mapping of admin IDs/emails to full names
+                    Object.keys(adminData).forEach(adminId => {
+                        const admin = adminData[adminId];
+                        const fullName = `${admin.firstname || ''} ${admin.lastname || ''}`.trim();
+                        
+                        // Map by different possible identifiers
+                        adminProfiles[adminId] = fullName;
+                        if (admin.email) {
+                            adminProfiles[admin.email] = fullName;
+                        }
+                        if (admin.username) {
+                            adminProfiles[admin.username] = fullName;
+                        }
+                    });
+                    
+                    console.log('Admin profiles loaded:', adminProfiles);
+                }
+            } catch (error) {
+                console.error('Error loading admin profiles:', error);
+            }
+        }
+
+        // Get admin full name from identifier
+        function getAdminFullName(adminIdentifier) {
+    if (!adminIdentifier || adminIdentifier === 'Waiting' || adminIdentifier === 'Currently Serving') {
+        return adminIdentifier;
+    }
+
+    // ✅ Now declared properly
+  const fullName = adminProfiles[adminIdentifier]; // ✅ Define fullName safely
+if (fullName && fullName.trim() !== '') {
+   return fullName;
+    // Now it works
+}
+
+    return adminIdentifier;
+}
+        // Transaction type mapping
+        function getTransactionDetail(transactionType) {
+            const types = {
+                'tuition': 'Tuition and Payments',
+                'graduates': 'Graduates',
+                'enrollment': 'Enrollment and Inquiries',
+                'schedule': 'Schedule',
+                'document': 'Request for Document',
+                'others': 'Others'
+            };
+            return types[transactionType] || transactionType;
+        }
+
+        // Apply transaction filter
+        function applyTransactionFilter() {
+            currentTransactionFilter = document.getElementById('transactionTypeFilter').value;
+            applyFilters();
+        }
+
+        // Apply all filters (transaction type + search)
+        function applyFilters() {
+            let filtered = [...dashboardData];
+
+            // Apply transaction type filter
+            if (currentTransactionFilter !== 'all') {
+                filtered = filtered.filter(entry => 
+                    entry.transactionType === currentTransactionFilter
+                );
+            }
+
+            // Apply search filter
+            const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+            if (searchTerm) {
+                filtered = filtered.filter(entry => 
+                    (entry.email || '').toLowerCase().includes(searchTerm) ||
+                    (entry.queueNumber || '').toLowerCase().includes(searchTerm) ||
+                    getTransactionDetail(entry.transactionType).toLowerCase().includes(searchTerm) ||
+                    getAdminFullName(entry.adminHandler).toLowerCase().includes(searchTerm)
+                );
+            }
+
+            filteredData = filtered;
+            updateStats();
+            updateCharts();
+            updateTable();
+        }
+
+        // Enhanced time parsing function
+        function parseTimeString(timeStr, dateStr) {
+            try {
+                if (!timeStr || !dateStr || timeStr === 'N/A' || timeStr === 'Waiting' || timeStr === 'In Progress') {
+                    return null;
+                }
+                
+                // Handle different date formats
+                let dateParts;
+                if (dateStr.includes('/')) {
+                    dateParts = dateStr.split('/');
+                } else if (dateStr.includes('-')) {
+                    dateParts = dateStr.split('-');
+                    // Rearrange if in YYYY-MM-DD format
+                    if (dateParts[0].length === 4) {
+                        dateParts = [dateParts[1], dateParts[2], dateParts[0]];
+                    }
+                } else {
+                    return null;
+                }
+                
+                if (dateParts.length !== 3) return null;
+                
+                const month = parseInt(dateParts[0]) - 1; // Month is 0-indexed
+                const day = parseInt(dateParts[1]);
+                const year = parseInt(dateParts[2]);
+                
+                // Parse time string (e.g., "10:30 AM" or "10:30:45 AM")
+                const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)/i);
+                if (!timeMatch) return null;
+                
+                let hours = parseInt(timeMatch[1]);
+                const minutes = parseInt(timeMatch[2]);
+                const seconds = parseInt(timeMatch[3] || 0);
+                const period = timeMatch[4].toUpperCase();
+                
+                if (period === 'PM' && hours !== 12) hours += 12;
+                if (period === 'AM' && hours === 12) hours = 0;
+                
+                return new Date(year, month, day, hours, minutes, seconds);
+            } catch (error) {
+                console.error('Error parsing time string:', timeStr, dateStr, error);
+                return null;
+            }
+        }
+
+        // Get current time in proper format
+        function getCurrentTime() {
+            const now = new Date();
+            return now.toLocaleString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+            });
+        }
+
+        // Get current date in MM/DD/YYYY format
+        function getCurrentDate() {
+            const now = new Date();
+            return `${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()}`;
+        }
+
+        // Calculate service time (from started to completed)
+        function calculateServiceTime(entry) {
+            try {
+                // Only calculate service time for completed transactions
+                if (!entry.timeStarted || !entry.timeCompleted || 
+                    entry.timeCompleted === 'N/A' || entry.timeCompleted === 'In Progress' || 
+                    entry.timeCompleted === 'Waiting' || entry.timeStarted === 'Waiting' ||
+                    entry.timeStarted === 'In Progress') {
+                    return 0;
+                }
+                
+                const startedTime = parseTimeString(entry.timeStarted, entry.date);
+                const completedTime = parseTimeString(entry.timeCompleted, entry.date);
+                
+                if (startedTime && completedTime && completedTime > startedTime) {
+                    const serviceMinutes = Math.round((completedTime - startedTime) / (1000 * 60));
+                    return Math.max(0, serviceMinutes);
+                }
+                
+                return 0;
+            } catch (error) {
+                console.error('Error calculating service time:', error);
+                return 0;
+            }
+        }
+
+        // Enhanced data processing function
+        function processEntryData(data, source, key) {
+            const currentDate = getCurrentDate();
+            const currentTime = getCurrentTime();
+            
+            // Ensure proper time tracking based on source
+            let processedData = { ...data };
+            
+            // Set date if missing
+            if (!processedData.date) {
+                processedData.date = currentDate;
+            }
+            
+            // Handle time registration - this should ALWAYS come from the original queue data
+            if (!processedData.timeRegistered) {
+                if (processedData.time) {
+                    processedData.timeRegistered = processedData.time;
+                } else if (processedData.timestamp) {
+                    const timestampDate = new Date(processedData.timestamp);
+                    processedData.timeRegistered = timestampDate.toLocaleString('en-US', {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: true
+                    });
+                } else {
+                    // If no original time data, use current time (fallback)
+                    processedData.timeRegistered = currentTime;
+                }
+            }
+            
+            // Handle different sources with proper time tracking
+            switch (source) {
+                case 'done':
+                    // Completed transactions - use stored times from Firebase
+                    if (!processedData.timeStarted) {
+                        processedData.timeStarted = processedData.timeStarted || 'N/A';
+                    }
+                    if (!processedData.timeCompleted) {
+                        processedData.timeCompleted = processedData.timeCompleted || 'N/A';
+                    }
+                    break;
+                    
+                case 'currently_serving':
+                case 'serving':
+                case 'nowServing':
+                    // Currently being served - should have timeStarted but not timeCompleted
+                    if (!processedData.timeStarted) {
+                        processedData.timeStarted = processedData.timeStarted || 'In Progress';
+                    }
+                    processedData.timeCompleted = 'In Progress';
+                    break;
+                    
+                case 'queue':
+                case 'priority_queue':
+                    // Still waiting - only has registration time
+                    processedData.timeStarted = 'Waiting';
+                    processedData.timeCompleted = 'Waiting';
+                    break;
+            }
+            
+            // Determine priority based on queue number or explicit priority field
+            const queueNumber = processedData.queueNumber || key || '';
+            if (processedData.priority) {
+                processedData.priority = processedData.priority;
+            } else if (queueNumber.toString().toUpperCase().startsWith('P')) {
+                processedData.priority = 'priority';
+            } else if (source === 'priority_queue') {
+                processedData.priority = 'priority';
+            } else {
+                processedData.priority = 'regular';
+            }
+            
+            // Calculate service time only for completed transactions
+            processedData.serviceTime = calculateServiceTime(processedData);
+            
+            // Enhanced admin handler processing
+            if (!processedData.adminHandler) {
+                if (source === 'done') {
+                    processedData.adminHandler = processedData.handledBy || processedData.adminHandler || 'Not Specified';
+                } else if (source === 'currently_serving' || source === 'serving' || source === 'nowServing') {
+                    processedData.adminHandler = processedData.handledBy || 'Currently Serving';
+                } else {
+                    processedData.adminHandler = 'Waiting';
+                }
+            }
+            
+            // Look for admin information in various fields
+            const adminIdentifiers = [
+                processedData.adminHandler,
+                processedData.handledBy,
+                processedData.servedBy,
+                processedData.adminId,
+                processedData.adminEmail
+            ];
+            
+            let adminFullName = null;
+            for (const identifier of adminIdentifiers) {
+                if (identifier && identifier !== 'Waiting' && identifier !== 'Currently Serving') {
+                    adminFullName = getAdminFullName(identifier);
+                    if (adminFullName !== identifier) {
+                        break; // Found a full name
+                    }
+                }
+            }
+            
+            if (adminFullName) {
+                processedData.adminHandler = adminFullName;
+            }
+            
+            processedData.source = source; // For debugging
+            return processedData;
+        }
+
+        async function loadDashboardData() {
+            try {
+                // Load admin profiles first
+                await loadAdminProfiles();
+                
+                const startDate = new Date(document.getElementById('startDate').value);
+                const endDate = new Date(document.getElementById('endDate').value);
+
+                document.getElementById('customerTable').innerHTML =
+                    '<tr><td colspan="10"><span class="loading"></span>Loading data...</td></tr>';
+
+                dashboardData = [];
+
+                console.log('Loading data from:', startDate, 'to', endDate);
+
+                // Get deleted queue numbers
+                const deletedSnapshot = await window.dbGet(window.dbRef(window.database, "Deleted"));
+                const deletedQueueNumbers = deletedSnapshot.exists() ? Object.keys(deletedSnapshot.val()) : [];
+
+                // Check all nodes
+                const nodesToCheck = ['done', 'currently_serving', 'queue', 'priority_queue', 'nowServing'];
+
+                for (const nodeName of nodesToCheck) {
+                    try {
+                        const nodeRef = window.dbRef(window.database, nodeName);
+                        const nodeSnapshot = await window.dbGet(nodeRef);
+
+                        if (nodeSnapshot.exists()) {
+                            console.log(`Found ${nodeName} data:`, nodeSnapshot.size);
+
+                            nodeSnapshot.forEach((childSnapshot) => {
+                                const data = childSnapshot.val();
+                                const key = childSnapshot.key;
+                                const queueNumber = data.queueNumber || key;
+
+                                // Skip deleted
+                                if (deletedQueueNumbers.includes(queueNumber)) {
+                                    console.log(`Skipped deleted entry: ${queueNumber}`);
+                                    return;
+                                }
+
+                                // Check date range
+                                let entryDate;
+                                if (data.date) {
+                                    entryDate = new Date(data.date);
+                                } else if (data.timestamp) {
+                                    entryDate = new Date(data.timestamp);
+                                } else {
+                                    entryDate = new Date(); // fallback
+                                }
+
+                                if (entryDate >= startDate && entryDate <= endDate) {
+                                    const processedEntry = processEntryData(data, nodeName, key);
+
+                                    // Prevent duplicate queue numbers
+                                    const isAlreadyAdded = dashboardData.some(
+                                        d => d.queueNumber === processedEntry.queueNumber
+                                    );
+
+                                    if (!isAlreadyAdded) {
+                                        dashboardData.push(processedEntry);
+                                        console.log(`Included entry from ${nodeName}:`, {
+                                            queue: processedEntry.queueNumber,
+                                            source: nodeName,
+                                            admin: processedEntry.adminHandler
+                                        });
+                                    } else {
+                                        console.log(`Skipped duplicate entry: ${processedEntry.queueNumber}`);
+                                    }
+                                }
+                            });
+                        }
+                    } catch (nodeError) {
+                        console.warn(`Error loading from ${nodeName}:`, nodeError);
+                    }
+                }
+
+                // Sort by most recent time
+                dashboardData.sort((a, b) => {
+                    const timeA = parseTimeString(a.timeRegistered, a.date);
+                    const timeB = parseTimeString(b.timeRegistered, b.date);
+                    if (timeA && timeB) {
+                        return timeB - timeA;
+                    }
+                    return (b.timeRegistered || '').localeCompare(a.timeRegistered || '');
+                });
+
+                console.log('Total data loaded:', dashboardData.length);
+                console.log('Priority entries:', dashboardData.filter(d => d.priority === 'priority').length);
+                console.log('Regular entries:', dashboardData.filter(d => d.priority === 'regular').length);
+
+                applyFilters();
+
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+                document.getElementById('customerTable').innerHTML =
+                    '<tr><td colspan="10">Error loading data. Please try again.</td></tr>';
+            }
+        }
+
+        // Update statistics (now uses filteredData instead of dashboardData)
+        function updateStats() {
+            const total = filteredData.length;
+            const regular = filteredData.filter(d => d.priority === 'regular').length;
+            const priority = filteredData.filter(d => d.priority === 'priority').length;
+            
+            // Calculate average service time (only for completed transactions)
+            const completedTransactions = filteredData.filter(d => d.serviceTime > 0);
+            const avgServiceTime = completedTransactions.length > 0 ? 
+                Math.round(completedTransactions.reduce((sum, d) => sum + d.serviceTime, 0) / completedTransactions.length) : 0;
+            
+            document.getElementById('totalTransactions').textContent = total;
+            document.getElementById('regularCount').textContent = regular;
+            document.getElementById('priorityCount').textContent = priority;
+            document.getElementById('avgServiceTime').textContent = avgServiceTime;
+        }
+
+        // Update charts (now uses filteredData instead of dashboardData)
+        function updateCharts() {
+            updateTransactionChart();
+            updateTrendChart();
+            updateTimeIntervalChart();
+            updateAdminChart();
+        }
+
+        function updateTransactionChart() {
+            const transactionTypes = {};
+            filteredData.forEach(d => {
+                const type = getTransactionDetail(d.transactionType);
+                transactionTypes[type] = (transactionTypes[type] || 0) + 1;
+            });
+
+            if (transactionChart) {
+                transactionChart.destroy();
+            }
+
+            const ctx1 = document.getElementById('transactionChart').getContext('2d');
+            transactionChart = new Chart(ctx1, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(transactionTypes),
+                    datasets: [{
+                        data: Object.values(transactionTypes),
+                        backgroundColor: [
+                            '#4b723a', '#3a5129', '#2c3e1f', '#5d8a47', '#6b9c54', '#7eb362'
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#1e2d16'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#e8f5e8',
+                                padding: 20
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateTrendChart() {
+            const dailyData = {};
+            filteredData.forEach(d => {
+                dailyData[d.date] = (dailyData[d.date] || 0) + 1;
+            });
+
+            if (trendChart) {
+                trendChart.destroy();
+            }
+
+            const ctx2 = document.getElementById('trendChart').getContext('2d');
+            trendChart = new Chart(ctx2, {
+                type: 'line',
+                data: {
+                    labels: Object.keys(dailyData).sort(),
+                    datasets: [{
+                        label: 'Daily Transactions',
+                        data: Object.keys(dailyData).sort().map(date => dailyData[date]),
+                        borderColor: '#4b723a',
+                        backgroundColor: 'rgba(75, 114, 58, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#e8f5e8'
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            ticks: {
+                                color: '#e8f5e8'
+                            },
+                            grid: {
+                                color: 'rgba(232, 245, 232, 0.1)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: '#e8f5e8'
+                            },
+                            grid: {
+                                color: 'rgba(232, 245, 232, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateTimeIntervalChart() {
+            // Create time intervals based on service completion times
+            const timeIntervals = {
+                '08:00-09:00': 0,
+                '09:00-10:00': 0,
+                '10:00-11:00': 0,
+                '11:00-12:00': 0,
+                '12:00-13:00': 0,
+                '13:00-14:00': 0,
+                '14:00-15:00': 0,
+                '15:00-16:00': 0,
+                '16:00-17:00': 0
+            };
+            
+            filteredData.forEach(d => {
+                if (d.timeCompleted && d.timeCompleted !== 'N/A' && d.timeCompleted !== 'In Progress' && d.timeCompleted !== 'Waiting') {
+                    const hour = extractHour(d.timeCompleted);
+                    if (hour !== null) {
+                        const interval = `${hour.toString().padStart(2, '0')}:00-${(hour + 1).toString().padStart(2, '0')}:00`;
+                        if (timeIntervals.hasOwnProperty(interval)) {
+                            timeIntervals[interval]++;
+                        }
+                    }
+                }
+            });
+
+            if (timeIntervalChart) {
+                timeIntervalChart.destroy();
+            }
+
+            const ctx3 = document.getElementById('timeIntervalChart').getContext('2d');
+            timeIntervalChart = new Chart(ctx3, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(timeIntervals),
+                    datasets: [{
+                        label: 'Transactions Completed',
+                        data: Object.values(timeIntervals),
+                        backgroundColor: 'rgba(75, 114, 58, 0.7)',
+                        borderColor: '#4b723a',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#e8f5e8'
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: '#e8f5e8',
+                                stepSize: 1
+                            },
+                            grid: {
+                                color: 'rgba(232, 245, 232, 0.1)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: '#e8f5e8'
+                            },
+                            grid: {
+                                color: 'rgba(232, 245, 232, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        let adminNameMap = {};
+
+async function fetchAdminNamesMap() {
+    try {
+        const snapshot = await get(child(dbref, "UsersAuthList"));
+        const data = snapshot.val();
+        adminNameMap = {};
+
+        for (const uid in data) {
+            const user = data[uid];
+            adminNameMap[uid] = `${user.firstname} ${user.lastname}`;
+        }
+    } catch (error) {
+        console.error("Failed to fetch admin names:", error);
+    }
+}
+        
+
+    function updateAdminChart() {
+    const adminStats = {};
+
+    filteredData.forEach(d => {
+    let admin = d.adminHandler || 'Not Specified';
+    if (admin === 'Admin') admin = adminFullName;
+    if (admin !== 'Waiting') {
+        adminStats[admin] = (adminStats[admin] || 0) + 1;
+    }
+});
+
+    if (adminChart) {
+        adminChart.destroy();
+    }
+
+    const ctx4 = document.getElementById('adminChart').getContext('2d');
+    adminChart = new Chart(ctx4, {
+        type: 'bar',
+        data: {
+            labels: Object.keys(adminStats),
+            datasets: [{
+                label: 'Transactions Handled',
+                data: Object.values(adminStats),
+                backgroundColor: 'rgba(75, 114, 58, 0.7)',
+                borderColor: '#4b723a',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: {
+                        color: '#e8f5e8'
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        color: '#e8f5e8',
+                        stepSize: 1
+                    },
+                    grid: {
+                        color: 'rgba(232, 245, 232, 0.1)'
+                    }
+                },
+                x: {
+                    ticks: {
+                        color: '#e8f5e8'
+                    },
+                    grid: {
+                        color: 'rgba(232, 245, 232, 0.1)'
+                    }
+                }
+            }
+        }
+    });
+}
+
+        function extractHour(timeStr) {
+            try {
+                const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)/i);
+                if (!timeMatch) return null;
+                
+                let hours = parseInt(timeMatch[1]);
+                const period = timeMatch[4].toUpperCase(); // Corrected index for period
+                
+                if (period === 'PM' && hours !== 12) hours += 12;
+                if (period === 'AM' && hours === 12) hours = 0;
+                
+                return hours;
+            } catch (error) {
+                return null;
+            }
+        }
+
+        // Update table
+        function updateTable() {
+    const tableBody = document.getElementById('customerTable');
+    tableBody.innerHTML = "";
+
+    if (filteredData.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="11">No transactions found for the selected period</td></tr>';
+        return;
+    }
+
+    filteredData.forEach((entry, index) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td>${entry.queueNumber}</td>
+            <td>${entry.email}</td>
+            <td>${getTransactionDetail(entry.transactionType)}</td>
+            <td>${entry.priority}</td>
+            <td>${entry.date || 'N/A'}</td>  
+            <td>${entry.timeRegistered}</td>
+            <td>${entry.timeStarted}</td>
+            <td>${entry.timeCompleted}</td>
+            <td>${entry.serviceTime} mins</td>
+          <td>${entry.adminHandler === 'Admin' ? adminFullName : entry.adminHandler}</td>
+            <td>
+               <button class="delete-btn" onclick="deleteTransaction(${index})">Delete</button>
+            </td>
+        `;
+        tableBody.appendChild(row);
+    });
+}
+
+        // Filter table based on search
+        function filterTable() {
+            const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+            
+            if (!searchTerm) {
+                filteredData = [...dashboardData];
+            } else {
+                filteredData = dashboardData.filter(entry => 
+                    (entry.email || '').toLowerCase().includes(searchTerm) ||
+                    (entry.queueNumber || '').toLowerCase().includes(searchTerm) ||
+                    getTransactionDetail(entry.transactionType).toLowerCase().includes(searchTerm) ||
+                    (entry.adminHandler || '').toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            updateTable();
+        }
+
+        // Authentication check
+        function checkCredentials() {
+            if (!sessionStorage.getItem("user-creds")) {
+                window.location.href = 'adminlogin.html';
+            }
+        }
+
+        // Home button functionality
+        function goHome() {
+            if (confirm("Are you sure you want to sign out and return to homepage?")) {
+                sessionStorage.removeItem("user-creds");
+                sessionStorage.removeItem("user-info");
+                window.location.href = 'homepage.html';
+            }
+        }
+
+        /// Initialize
+        window.addEventListener('load', async () => {
+            await fetchAdminNamesMap(); // <-- new
+            checkCredentials();
+        });
+
+        document.querySelector('.home-button').addEventListener('click', goHome);
+    </script>
+</body>
+</html>
